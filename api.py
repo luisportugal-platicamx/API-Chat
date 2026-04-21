@@ -1,11 +1,16 @@
-from fastapi import FastAPI
-from fastapi.responses import Response
+import os
+import uuid
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
-from playwright.sync_api import sync_playwright  # <-- Volvemos a la versión síncrona
+from playwright.sync_api import sync_playwright
 import uvicorn
 
-# 1. Definimos la estructura exacta
+# 1. Crear una carpeta para guardar las imágenes si no existe
+os.makedirs("imagenes", exist_ok=True)
+
 class Mensaje(BaseModel):
     tipo: str
     texto: str
@@ -18,9 +23,11 @@ class ChatData(BaseModel):
 
 app = FastAPI(title="API Simulador de WhatsApp")
 
-# 2. IMPORTANTE: Quitamos el "async" de aquí. Esto fuerza a FastAPI a usar un hilo separado.
+# 2. Convertir la carpeta "imagenes" en un directorio público web
+app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
+
 @app.post("/generar-imagen")
-def generar_imagen(datos: ChatData):
+def generar_imagen(datos: ChatData, request: Request):
     
     # Lógica del Logo
     if datos.logo.startswith("http"):
@@ -91,29 +98,34 @@ def generar_imagen(datos: ChatData):
     </html>
     """
 
-    # 3. Usamos Playwright Síncrono (sin 'await')
+    # 3. Usamos Playwright Síncrono
     with sync_playwright() as p:
-        # AGREGAMOS ESTOS ARGUMENTOS PARA QUE FUNCIONE EN LA NUBE
         browser = p.chromium.launch(
             headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage"
-            ]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
         page = browser.new_page()
         page.set_content(html_completo)
         
-        # Esperar a que la imagen del logo cargue desde internet
         page.wait_for_load_state("networkidle")
         
         elemento_telefono = page.locator("#capture-area")
         imagen_bytes = elemento_telefono.screenshot(type="jpeg", quality=90)
-        
         browser.close()
         
-    return Response(content=imagen_bytes, media_type="image/jpeg")
+    # 4. Generar un nombre único aleatorio para la foto
+    nombre_archivo = f"{uuid.uuid4()}.jpg"
+    ruta_archivo = os.path.join("imagenes", nombre_archivo)
+    
+    # 5. Guardar la imagen en nuestra carpeta
+    with open(ruta_archivo, "wb") as f:
+        f.write(imagen_bytes)
+        
+    # 6. Construir la URL completa basada en el servidor actual
+    url_publica = f"{request.base_url}imagenes/{nombre_archivo}"
+    
+    # 7. Devolver el JSON con la URL
+    return JSONResponse(content={"mensaje": "Éxito", "url": url_publica})
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="127.0.0.1", port=9999, reload=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=10000)
