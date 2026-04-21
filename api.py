@@ -93,7 +93,15 @@ def generar_imagen(datos: ChatData):
 
     # 3. Usamos Playwright Síncrono (sin 'await')
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # AGREGAMOS ESTOS ARGUMENTOS PARA QUE FUNCIONE EN LA NUBE
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage"
+            ]
+        )
         page = browser.new_page()
         page.set_content(html_completo)
         
