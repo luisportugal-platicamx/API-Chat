@@ -8,22 +8,25 @@ from typing import List
 from playwright.sync_api import sync_playwright
 import uvicorn
 
-# 1. Crear una carpeta para guardar las imágenes si no existe
 os.makedirs("imagenes", exist_ok=True)
 
+# --- NUEVA ESTRUCTURA DE DATOS ---
 class Mensaje(BaseModel):
     tipo: str
     texto: str
     hora: str
 
+class Conversacion(BaseModel):
+    titulo: str
+    mensajes: List[Mensaje]
+
 class ChatData(BaseModel):
     empresa: str
     logo: str
-    mensajes: List[Mensaje]
+    conversaciones: List[Conversacion]  # <--- Ahora esperamos una lista de conversaciones
+# ---------------------------------
 
 app = FastAPI(title="API Simulador de WhatsApp")
-
-# 2. Convertir la carpeta "imagenes" en un directorio público web
 app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
 
 @app.post("/generar-imagen")
@@ -35,20 +38,46 @@ def generar_imagen(datos: ChatData, request: Request):
     else:
         logo_html = datos.logo
 
-    # Construimos los mensajes
-    mensajes_html = ""
-    for msg in datos.mensajes:
-        clase_tipo = "sent" if msg.tipo == "cliente" else "received"
-        checkmarks = " ✓✓" if msg.tipo == "cliente" else ""
+    # --- GENERAR MÚLTIPLES TELÉFONOS ---
+    telefonos_html = ""
+    for conv in datos.conversaciones:
+        mensajes_html = ""
+        for msg in conv.mensajes:
+            clase_tipo = "sent" if msg.tipo == "cliente" else "received"
+            checkmarks = " ✓✓" if msg.tipo == "cliente" else ""
+            
+            mensajes_html += f"""
+            <div class="message {clase_tipo}">
+                {msg.texto} 
+                <span class="time">{msg.hora}{checkmarks}</span>
+            </div>
+            """
         
-        mensajes_html += f"""
-        <div class="message {clase_tipo}">
-            {msg.texto} 
-            <span class="time">{msg.hora}{checkmarks}</span>
+        # Armamos un teléfono completo por cada conversación
+        telefonos_html += f"""
+        <div class="phone-column">
+            <div class="phone-title">{conv.titulo}</div>
+            <div class="phone-container">
+                <div class="chat-header">
+                    <div class="back-btn">←</div>
+                    <div class="profile-pic">{logo_html}</div>
+                    <div class="contact-info">
+                        <div class="contact-name">{datos.empresa}</div>
+                        <div class="contact-status">Negocio - En línea</div>
+                    </div>
+                </div>
+                <div class="chat-body">
+                    {mensajes_html}
+                </div>
+                <div class="chat-footer">
+                    <div class="input-bar"><span>Escribe un mensaje...</span></div>
+                    <div class="mic-btn"><span>🎤</span></div>
+                </div>
+            </div>
         </div>
         """
 
-    # Inyectamos el HTML
+    # --- HTML Y CSS ACTUALIZADO PARA 3 COLUMNAS ---
     html_completo = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -56,8 +85,22 @@ def generar_imagen(datos: ChatData, request: Request):
         <meta charset="UTF-8">
         <style>
             * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }}
-            body {{ display: flex; justify-content: center; align-items: center; background-color: #f0f2f5; height: 100vh; margin: 0; }}
-            .phone-container {{ width: 350px; height: 650px; background-color: #e5ddd5; border: 8px solid #333; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; position: relative; }}
+            body {{ background-color: #f0f2f5; margin: 0; }}
+            
+            /* El área de captura ahora es una caja flexible horizontal */
+            #capture-area {{ 
+                display: flex; 
+                gap: 50px; 
+                justify-content: center; 
+                align-items: flex-start; 
+                padding: 60px; 
+                background-color: #e5ddd5; /* Fondo desenfocado genérico */
+            }}
+            
+            .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 20px; }}
+            .phone-title {{ font-size: 24px; font-weight: bold; color: #333; text-align: center; }}
+            
+            .phone-container {{ width: 350px; height: 650px; background-color: #e5ddd5; border: 8px solid #333; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }}
             .chat-header {{ background-color: #008069; color: white; padding: 10px 15px; display: flex; align-items: center; z-index: 2; }}
             .back-btn {{ margin-right: 10px; font-size: 20px; }}
             .profile-pic {{ width: 40px; height: 40px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 15px; font-size: 20px; overflow: hidden; }}
@@ -77,54 +120,38 @@ def generar_imagen(datos: ChatData, request: Request):
         </style>
     </head>
     <body>
-        <div class="phone-container" id="capture-area">
-            <div class="chat-header">
-                <div class="back-btn">←</div>
-                <div class="profile-pic">{logo_html}</div>
-                <div class="contact-info">
-                    <div class="contact-name">{datos.empresa}</div>
-                    <div class="contact-status">Negocio - En línea</div>
-                </div>
-            </div>
-            <div class="chat-body">
-                {mensajes_html}
-            </div>
-            <div class="chat-footer">
-                <div class="input-bar"><span>Escribe un mensaje...</span></div>
-                <div class="mic-btn"><span>🎤</span></div>
-            </div>
+        <div id="capture-area">
+            {telefonos_html}
         </div>
     </body>
     </html>
     """
 
-    # 3. Usamos Playwright Síncrono
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
         page = browser.new_page()
-        page.set_content(html_completo)
         
+        # NUEVO: Agrandar la ventana del navegador para que quepan 3 teléfonos sin cortarse
+        page.set_viewport_size({"width": 1400, "height": 900})
+        
+        page.set_content(html_completo)
         page.wait_for_load_state("networkidle")
         
         elemento_telefono = page.locator("#capture-area")
         imagen_bytes = elemento_telefono.screenshot(type="jpeg", quality=90)
         browser.close()
         
-    # 4. Generar un nombre único aleatorio para la foto
     nombre_archivo = f"{uuid.uuid4()}.jpg"
     ruta_archivo = os.path.join("imagenes", nombre_archivo)
     
-    # 5. Guardar la imagen en nuestra carpeta
     with open(ruta_archivo, "wb") as f:
         f.write(imagen_bytes)
         
-    # 6. Construir la URL completa basada en el servidor actual
     url_publica = f"{request.base_url}imagenes/{nombre_archivo}"
     
-    # 7. Devolver el JSON con la URL
     return JSONResponse(content={"mensaje": "Éxito", "url": url_publica})
 
 if __name__ == "__main__":
