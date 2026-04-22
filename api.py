@@ -10,14 +10,13 @@ import uvicorn
 
 os.makedirs("imagenes", exist_ok=True)
 
-# --- MODELO ACTUALIZADO PARA BURBUJAS COMBINADAS ---
+# --- MODELO ACTUALIZADO ---
 class Mensaje(BaseModel):
-    tipo: str                   # "cliente" o "agente"
+    tipo: str        # "cliente" o "agente"
+    subtipo: str     # "texto", "imagen" o "archivo"
+    texto: str       # El mensaje, la URL de la imagen o el nombre del PDF
     hora: str
-    texto: Optional[str] = None # El texto o pie de foto
-    imagen: Optional[str] = None # URL de la imagen (si hay)
-    archivo: Optional[str] = None # Nombre del PDF (si hay)
-    metadata: Optional[str] = None # Tamaño del archivo (ej: "1.2 MB")
+    metadata: Optional[str] = None # Para el tamaño del archivo (ej: "2.4 MB")
 
 class Conversacion(BaseModel):
     titulo: str
@@ -42,29 +41,25 @@ def generar_imagen(datos: ChatData, request: Request):
         for msg in conv.mensajes:
             clase_tipo = "sent" if msg.tipo == "cliente" else "received"
             
-            # --- CONSTRUCCIÓN DE LA BURBUJA ÚNICA ---
-            contenido = ""
-            
-            # 1. Si trae imagen, la ponemos arriba
-            if msg.imagen:
-                contenido += f'<img src="{msg.imagen}" style="width:100%; border-radius:5px; display:block; margin-bottom:5px;">'
-            
-            # 2. Si trae archivo, lo ponemos arriba
-            if msg.archivo:
+            # --- LÓGICA DE RENDERIZADO POR SUBTIPO ---
+            if msg.subtipo == "imagen":
+                # Burbuja de Imagen
+                contenido = f'<img src="{msg.texto}" style="width:100%; border-radius:5px; display:block; margin-bottom:5px;">'
+            elif msg.subtipo == "archivo":
+                # Burbuja de PDF/Archivo
                 peso = msg.metadata if msg.metadata else "PDF"
-                contenido += f"""
+                contenido = f"""
                 <div style="display:flex; align-items:center; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px; margin-bottom:5px;">
                     <span style="font-size:24px; margin-right:10px;">📄</span>
                     <div style="overflow:hidden;">
-                        <div style="font-size:13px; font-weight:500; white-space:nowrap; text-overflow:ellipsis;">{msg.archivo}</div>
+                        <div style="font-size:13px; font-weight:500; white-space:nowrap; text-overflow:ellipsis;">{msg.texto}</div>
                         <div style="font-size:11px; color:#666;">{peso}</div>
                     </div>
                 </div>
                 """
-            
-            # 3. Si trae texto (caption), lo ponemos debajo de la imagen/archivo
-            if msg.texto:
-                contenido += f'<div style="margin-top: 2px;">{msg.texto}</div>'
+            else:
+                # Texto normal
+                contenido = f'<div>{msg.texto}</div>'
 
             mensajes_html += f"""
             <div class="message {clase_tipo}">
@@ -108,7 +103,7 @@ def generar_imagen(datos: ChatData, request: Request):
             .message {{ max-width: 85%; padding: 6px 9px; border-radius: 7px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }}
             .message.sent {{ background-color: #dcf8c6; align-self: flex-end; }}
             .message.received {{ background-color: #ffffff; align-self: flex-start; }}
-            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; clear: both; }}
+            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; }}
             .chat-footer {{ background-color: #f0f0f0; padding: 10px; }}
             .input-bar {{ background-color: #fff; padding: 8px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
         </style>
