@@ -4,17 +4,19 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from playwright.sync_api import sync_playwright
 import uvicorn
 
 os.makedirs("imagenes", exist_ok=True)
 
-# --- NUEVA ESTRUCTURA DE DATOS ---
+# --- MODELO ACTUALIZADO ---
 class Mensaje(BaseModel):
-    tipo: str
-    texto: str
+    tipo: str        # "cliente" o "agente"
+    subtipo: str     # "texto", "imagen" o "archivo"
+    texto: str       # El mensaje, la URL de la imagen o el nombre del PDF
     hora: str
+    metadata: Optional[str] = None # Para el tamaño del archivo (ej: "2.4 MB")
 
 class Conversacion(BaseModel):
     titulo: str
@@ -23,37 +25,49 @@ class Conversacion(BaseModel):
 class ChatData(BaseModel):
     empresa: str
     logo: str
-    conversaciones: List[Conversacion]  # <--- Ahora esperamos una lista de conversaciones
-# ---------------------------------
+    conversaciones: List[Conversacion]
 
-app = FastAPI(title="API Simulador de WhatsApp")
+app = FastAPI()
 app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
 
 @app.post("/generar-imagen")
 def generar_imagen(datos: ChatData, request: Request):
     
-    # Lógica del Logo
-    if datos.logo.startswith("http"):
-        logo_html = f'<img src="{datos.logo}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">'
-    else:
-        logo_html = datos.logo
+    logo_html = f'<img src="{datos.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' if datos.logo.startswith("http") else datos.logo
 
-    # --- GENERAR MÚLTIPLES TELÉFONOS ---
     telefonos_html = ""
     for conv in datos.conversaciones:
         mensajes_html = ""
         for msg in conv.mensajes:
             clase_tipo = "sent" if msg.tipo == "cliente" else "received"
-            checkmarks = " ✓✓" if msg.tipo == "cliente" else ""
             
+            # --- LÓGICA DE RENDERIZADO POR SUBTIPO ---
+            if msg.subtipo == "imagen":
+                # Burbuja de Imagen
+                contenido = f'<img src="{msg.texto}" style="width:100%; border-radius:5px; display:block; margin-bottom:5px;">'
+            elif msg.subtipo == "archivo":
+                # Burbuja de PDF/Archivo
+                peso = msg.metadata if msg.metadata else "PDF"
+                contenido = f"""
+                <div style="display:flex; align-items:center; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px; margin-bottom:5px;">
+                    <span style="font-size:24px; margin-right:10px;">📄</span>
+                    <div style="overflow:hidden;">
+                        <div style="font-size:13px; font-weight:500; white-space:nowrap; text-overflow:ellipsis;">{msg.texto}</div>
+                        <div style="font-size:11px; color:#666;">{peso}</div>
+                    </div>
+                </div>
+                """
+            else:
+                # Texto normal
+                contenido = f'<div>{msg.texto}</div>'
+
             mensajes_html += f"""
             <div class="message {clase_tipo}">
-                {msg.texto} 
-                <span class="time">{msg.hora}{checkmarks}</span>
+                {contenido}
+                <span class="time">{msg.hora}</span>
             </div>
             """
         
-        # Armamos un teléfono completo por cada conversación
         telefonos_html += f"""
         <div class="phone-column">
             <div class="phone-title">{conv.titulo}</div>
@@ -66,93 +80,51 @@ def generar_imagen(datos: ChatData, request: Request):
                         <div class="contact-status">Negocio - En línea</div>
                     </div>
                 </div>
-                <div class="chat-body">
-                    {mensajes_html}
-                </div>
-                <div class="chat-footer">
-                    <div class="input-bar"><span>Escribe un mensaje...</span></div>
-                    <div class="mic-btn"><span>🎤</span></div>
-                </div>
+                <div class="chat-body">{mensajes_html}</div>
+                <div class="chat-footer"><div class="input-bar"><span>Escribe un mensaje...</span></div></div>
             </div>
         </div>
         """
 
-    # --- HTML Y CSS ACTUALIZADO PARA 3 COLUMNAS ---
     html_completo = f"""
     <!DOCTYPE html>
-    <html lang="es">
+    <html>
     <head>
         <meta charset="UTF-8">
         <style>
             * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }}
-            body {{ background-color: #f0f2f5; margin: 0; }}
-            
-            /* El área de captura ahora es una caja flexible horizontal */
-            #capture-area {{ 
-                display: flex; 
-                gap: 50px; 
-                justify-content: center; 
-                align-items: flex-start; 
-                padding: 60px; 
-                background-color: #e5ddd5; /* Fondo desenfocado genérico */
-            }}
-            
-            .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 20px; }}
-            .phone-title {{ font-size: 24px; font-weight: bold; color: #333; text-align: center; }}
-            
-            .phone-container {{ width: 350px; height: 650px; background-color: #e5ddd5; border: 8px solid #333; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }}
-            .chat-header {{ background-color: #008069; color: white; padding: 10px 15px; display: flex; align-items: center; z-index: 2; }}
-            .back-btn {{ margin-right: 10px; font-size: 20px; }}
-            .profile-pic {{ width: 40px; height: 40px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 15px; font-size: 20px; overflow: hidden; }}
-            .contact-info {{ flex-grow: 1; }}
-            .contact-name {{ font-size: 16px; font-weight: 500; }}
-            .contact-status {{ font-size: 12px; opacity: 0.8; }}
-            .chat-body {{ flex-grow: 1; padding: 20px 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: cover; }}
-            .message {{ max-width: 80%; padding: 8px 12px; border-radius: 7.5px; font-size: 14.2px; line-height: 19px; position: relative; word-wrap: break-word; }}
-            .message .time {{ font-size: 11px; color: #999; float: right; margin-top: 5px; margin-left: 10px; }}
-            .message.sent {{ background-color: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }}
-            .message.sent::before {{ content: ""; position: absolute; top: 0; right: -8px; border-top: 10px solid #dcf8c6; border-right: 10px solid transparent; }}
-            .message.received {{ background-color: #ffffff; align-self: flex-start; border-top-left-radius: 0; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }}
-            .message.received::before {{ content: ""; position: absolute; top: 0; left: -8px; border-top: 10px solid #ffffff; border-left: 10px solid transparent; }}
-            .chat-footer {{ background-color: #f0f0f0; padding: 10px; display: flex; align-items: center; }}
-            .input-bar {{ flex-grow: 1; background-color: #fff; padding: 10px 15px; border-radius: 20px; color: #888; font-size: 14px; display: flex; }}
-            .mic-btn {{ width: 40px; height: 40px; background-color: #008069; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-left: 10px; }}
+            #capture-area {{ display: flex; gap: 40px; justify-content: center; padding: 50px; background-color: #d1d1d1; }}
+            .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 15px; }}
+            .phone-title {{ font-size: 20px; font-weight: bold; color: #222; }}
+            .phone-container {{ width: 350px; height: 650px; background-color: #e5ddd5; border: 8px solid #333; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }}
+            .chat-header {{ background-color: #008069; color: white; padding: 10px 15px; display: flex; align-items: center; }}
+            .profile-pic {{ width: 38px; height: 38px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 12px; font-size: 18px; overflow: hidden; }}
+            .chat-body {{ flex-grow: 1; padding: 15px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; display: flex; flex-direction: column; gap: 8px; }}
+            .message {{ max-width: 85%; padding: 6px 9px; border-radius: 7px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }}
+            .message.sent {{ background-color: #dcf8c6; align-self: flex-end; }}
+            .message.received {{ background-color: #ffffff; align-self: flex-start; }}
+            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; }}
+            .chat-footer {{ background-color: #f0f0f0; padding: 10px; }}
+            .input-bar {{ background-color: #fff; padding: 8px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
         </style>
     </head>
     <body>
-        <div id="capture-area">
-            {telefonos_html}
-        </div>
+        <div id="capture-area">{telefonos_html}</div>
     </body>
     </html>
     """
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        )
-        page = browser.new_page()
-        
-        # NUEVO: Agrandar la ventana del navegador para que quepan 3 teléfonos sin cortarse
-        page.set_viewport_size({"width": 1400, "height": 900})
-        
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        page = browser.new_page(viewport={"width": 1400, "height": 1000})
         page.set_content(html_completo)
         page.wait_for_load_state("networkidle")
-        
-        elemento_telefono = page.locator("#capture-area")
-        imagen_bytes = elemento_telefono.screenshot(type="jpeg", quality=90)
+        img = page.locator("#capture-area").screenshot(type="jpeg", quality=90)
         browser.close()
         
-    nombre_archivo = f"{uuid.uuid4()}.jpg"
-    ruta_archivo = os.path.join("imagenes", nombre_archivo)
-    
-    with open(ruta_archivo, "wb") as f:
-        f.write(imagen_bytes)
-        
-    url_publica = f"{request.base_url}imagenes/{nombre_archivo}"
-    
-    return JSONResponse(content={"mensaje": "Éxito", "url": url_publica})
+    nombre = f"{uuid.uuid4()}.jpg"
+    with open(f"imagenes/{nombre}", "wb") as f: f.write(img)
+    return JSONResponse(content={"url": f"{request.base_url}imagenes/{nombre}"})
 
 if __name__ == "__main__":
     uvicorn.run("api:app", host="0.0.0.0", port=10000)
