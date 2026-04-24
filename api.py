@@ -1,5 +1,6 @@
 import os
 import uuid
+from urllib.parse import urlparse  # <-- NUEVO: Para limpiar la URL
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +25,7 @@ class Conversacion(BaseModel):
 
 class ChatData(BaseModel):
     empresa: str
-    logo: str
+    pagina_web: str  # <-- NUEVO: Reemplaza al 'logo'
     conversaciones: List[Conversacion]
 
 app = FastAPI()
@@ -33,7 +34,16 @@ app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
 @app.post("/generar-imagen")
 def generar_imagen(datos: ChatData, request: Request):
     
-    logo_html = f'<img src="{datos.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' if datos.logo.startswith("http") else datos.logo
+    # --- LÓGICA PARA OBTENER EL FAVICON ---
+    # 1. Limpiamos la URL para sacar solo el dominio (ej. xbox.com)
+    url_limpia = datos.pagina_web if datos.pagina_web.startswith("http") else f"http://{datos.pagina_web}"
+    dominio = urlparse(url_limpia).netloc.replace("www.", "")
+    
+    # 2. Usamos el servicio de Google para traer el icono a 128px
+    logo_url = f"https://www.google.com/s2/favicons?domain={dominio}&sz=128"
+    
+    # 3. Lo metemos en nuestra etiqueta HTML
+    logo_html = f'<img src="{logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
 
     telefonos_html = ""
     for conv in datos.conversaciones:
