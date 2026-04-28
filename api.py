@@ -12,9 +12,9 @@ import uvicorn
 os.makedirs("imagenes", exist_ok=True)
 
 class Mensaje(BaseModel):
-    tipo: str        # "cliente" o "agente"
-    subtipo: str     # "texto", "imagen" o "archivo"
-    texto: str       # El mensaje, la URL de la imagen o el nombre del PDF
+    tipo: str        
+    subtipo: str     
+    texto: str       
     hora: str
     metadata: Optional[str] = None 
 
@@ -26,7 +26,6 @@ class ChatData(BaseModel):
     empresa: str
     pagina_web: str
     conversaciones: List[Conversacion]
-    # Se eliminó promesa_titulo
     caso_uso: str = "Automatización y atención al cliente por WhatsApp"
     promesa_texto: str = "Un agente de IA puede reducir 30%-50% el tiempo operativo invertido en atención, validación y seguimiento, mejorando radicalmente la experiencia del usuario."
 
@@ -36,13 +35,16 @@ app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
 @app.post("/generar-imagen")
 def generar_imagen(datos: ChatData, request: Request):
     
-    # 1. Limpiar URL para el Favicon
+    # 1. Logo del Cliente (Favicon)
     url_limpia = datos.pagina_web if datos.pagina_web.startswith("http") else f"http://{datos.pagina_web}"
     dominio = urlparse(url_limpia).netloc.replace("www.", "")
-    logo_url = f"https://www.google.com/s2/favicons?domain={dominio}&sz=128"
-    logo_html = f'<img src="{logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+    logo_cliente_url = f"https://www.google.com/s2/favicons?domain={dominio}&sz=128"
+    logo_html = f'<img src="{logo_cliente_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
 
-    # 2. Construir los teléfonos
+    # 2. Logo de Platica
+    platica_logo_url = "https://platica.mx/favicon.png"
+
+    # 3. Construir los teléfonos
     telefonos_html = ""
     iconos_titulos = ["🔍", "🛡️", "✅"] 
 
@@ -94,7 +96,7 @@ def generar_imagen(datos: ChatData, request: Request):
         </div>
         """
 
-    # 3. Ensamblar la plantilla comercial completa
+    # 4. Plantilla Final
     html_completo = f"""
     <!DOCTYPE html>
     <html>
@@ -106,17 +108,18 @@ def generar_imagen(datos: ChatData, request: Request):
             
             #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; }}
             
-            /* HEADER COMERCIAL */
-            .top-header {{ margin-bottom: 10px; }}
+            /* HEADER */
+            .header-container {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }}
+            .header-left {{ flex: 1; }}
+            .platica-branding {{ display: flex; align-items: center; gap: 10px; }}
+            .platica-logo-img {{ height: 45px; width: auto; }}
+            .platica-name {{ font-size: 24px; font-weight: 800; color: #047857; letter-spacing: -1px; }}
+
             .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
-            .promise-row {{ display: flex; align-items: center; gap: 30px; }}
-            /* Ahora el texto de la promesa hereda la línea verde y es más vistoso */
-            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1200px; border-left: 5px solid #047857; padding-left: 20px; }}
+            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1100px; border-left: 5px solid #047857; padding-left: 20px; }}
             
-            /* CONTENIDO PRINCIPAL */
+            /* CONTENT */
             .main-content {{ display: flex; gap: 40px; }}
-            
-            /* SECCIÓN DE TELÉFONOS */
             .phones-section {{ flex: 1; display: flex; flex-direction: column; }}
             .visualizacion-header {{ text-align: center; font-size: 18px; font-weight: 600; color: #047857; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }}
             .visualizacion-header::before, .visualizacion-header::after {{ content: ""; flex: 1; border-bottom: 1px solid #cbd5e1; }}
@@ -130,22 +133,17 @@ def generar_imagen(datos: ChatData, request: Request):
             
             .chat-header {{ background-color: #075e54; color: white; padding: 25px 15px 10px; display: flex; align-items: center; }}
             .profile-pic {{ width: 38px; height: 38px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 12px; font-size: 18px; overflow: hidden; }}
-            .contact-name {{ font-weight: 600; font-size: 15px; }}
-            .contact-status {{ font-size: 11px; opacity: 0.8; }}
-            
             .chat-body {{ flex-grow: 1; padding: 15px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; display: flex; flex-direction: column; gap: 8px; }}
             .message {{ max-width: 85%; padding: 8px 10px; border-radius: 8px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.4; }}
             .message.sent {{ background-color: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }}
             .message.received {{ background-color: #ffffff; align-self: flex-start; border-top-left-radius: 0; }}
-            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; clear: both; }}
+            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; }}
             
             .chat-footer {{ background-color: #f0f0f0; padding: 10px; }}
             .input-bar {{ background-color: #fff; padding: 10px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
             
-            .phones-caption {{ text-align: center; color: #475569; font-size: 15px; margin-top: 20px; }}
-            
-            /* PANEL DERECHO (CARACTERÍSTICAS) */
-            .features-panel {{ width: 380px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }}
+            /* PANEL DERECHO */
+            .features-panel {{ width: 380px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 20px; }}
             .features-title {{ font-size: 20px; font-weight: 700; color: #0f172a; text-align: center; margin-bottom: 10px; }}
             .feature-item {{ display: flex; gap: 15px; align-items: flex-start; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; }}
             .feature-item:last-child {{ border-bottom: none; }}
@@ -153,38 +151,31 @@ def generar_imagen(datos: ChatData, request: Request):
             .feat-content h4 {{ color: #047857; font-size: 16px; margin-bottom: 5px; }}
             .feat-content p {{ color: #475569; font-size: 13px; line-height: 1.4; }}
             
-            /* FOOTER / BOTTOM BANNER */
-            .bottom-banner {{ display: flex; background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 30px; justify-content: space-between; align-items: center; }}
-            .banner-left {{ display: flex; gap: 20px; align-items: center; max-width: 60%; border-right: 1px solid #a7f3d0; padding-right: 30px; }}
-            .banner-left h4 {{ color: #047857; font-size: 20px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }}
-            .banner-left p {{ color: #334155; font-size: 15px; line-height: 1.4; }}
-            
-            .banner-right {{ display: flex; gap: 20px; align-items: center; flex: 1; padding-left: 30px; justify-content: space-between; }}
-            .banner-right h4 {{ color: #0f172a; font-size: 18px; margin-bottom: 5px; }}
-            .banner-right p {{ color: #475569; font-size: 14px; line-height: 1.4; }}
-            .cta-btn {{ background-color: #047857; color: white; padding: 15px 25px; border-radius: 8px; font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(4,120,87,0.3); }}
+            /* FOOTER (EVIDENCIA) */
+            .bottom-banner {{ background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 35px; text-align: center; display: flex; align-items: center; justify-content: center; }}
+            .evidencia-texto {{ font-size: 26px; color: #1e293b; line-height: 1.4; max-width: 1400px; }}
+            .evidencia-texto strong {{ color: #047857; font-weight: 700; }}
             
         </style>
     </head>
     <body>
         <div id="capture-area">
             
-            <div class="top-header">
-                <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
-                <div class="promise-row">
+            <div class="header-container">
+                <div class="header-left">
+                    <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
                     <div class="promise-text">{datos.promesa_texto}</div>
+                </div>
+                <div class="platica-branding">
+                    <img src="{platica_logo_url}" class="platica-logo-img">
+                    <span class="platica-name">PLATICA</span>
                 </div>
             </div>
             
             <div class="main-content">
                 <div class="phones-section">
                     <div class="visualizacion-header">Visualización</div>
-                    <div class="phones-grid">
-                        {telefonos_html}
-                    </div>
-                    <div class="phones-caption">
-                        🤖 El agente resuelve lo repetitivo y escala excepciones al equipo humano.
-                    </div>
+                    <div class="phones-grid">{telefonos_html}</div>
                 </div>
                 
                 <div class="features-panel">
@@ -200,49 +191,36 @@ def generar_imagen(datos: ChatData, request: Request):
                         <div class="feat-icon">📋</div>
                         <div class="feat-content">
                             <h4>Validación inteligente</h4>
-                            <p>Verifica intenciones, extrae datos clave y captura evidencia en formatos múltiples.</p>
+                            <p>Verifica intenciones y extrae datos clave en formatos múltiples.</p>
                         </div>
                     </div>
                     <div class="feature-item">
                         <div class="feat-icon">🔄</div>
                         <div class="feat-content">
                             <h4>Gestión automatizada</h4>
-                            <p>Crea el caso, gestiona respuestas y notifica al usuario final en tiempo real.</p>
+                            <p>Crea el caso y notifica al usuario final en tiempo real.</p>
                         </div>
                     </div>
                     <div class="feature-item">
                         <div class="feat-icon">👤</div>
                         <div class="feat-content">
                             <h4>Escalamiento humano</h4>
-                            <p>El agente transfiere excepciones a los asesores de ventas con contexto completo.</p>
+                            <p>El agente transfiere excepciones con contexto completo.</p>
                         </div>
                     </div>
                     <div class="feature-item">
                         <div class="feat-icon">📊</div>
                         <div class="feat-content">
-                            <h4>Trazabilidad y reportes</h4>
-                            <p>Monitorea casos, tiempos de respuesta y resultados desde el panel de control.</p>
+                            <h4>Trazabilidad</h4>
+                            <p>Monitorea casos y tiempos desde el panel de control.</p>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="bottom-banner">
-                <div class="banner-left">
-                    <div>
-                        <h4><span style="font-size:24px;">🛡️</span> Evidencia</h4>
-                        <p>Platica ya opera conversaciones con lógica de negocio a escala.<br>
-                        Nuestras campañas correctivas y preventivas alcanzan altas tasas de resolución automatizada.</p>
-                    </div>
-                </div>
-                <div class="banner-right">
-                    <div>
-                        <h4>Siguiente paso</h4>
-                        <p>Agenda una demo y te mostramos este flujo aplicado a tu operación.</p>
-                    </div>
-                    <div class="cta-btn">
-                        📅 Agenda una demo
-                    </div>
+                <div class="evidencia-texto">
+                    Platica ya opera conversaciones con lógica de negocio a escala. En <strong>Vianney</strong>, las campañas correctivas alcanzan <strong>~24,000 mensajes/mes</strong> y las preventivas <strong>~16,000 mensajes/mes.</strong>
                 </div>
             </div>
             
