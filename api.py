@@ -103,20 +103,21 @@ def generar_imagen(datos: ChatData, request: Request):
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
             * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }}
             
             #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; }}
             
-            /* HEADER */
-            .header-container {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }}
-            .header-left {{ flex: 1; }}
-            .platica-branding {{ display: flex; align-items: center; gap: 10px; }}
-            .platica-logo-img {{ height: 45px; width: auto; }}
-            .platica-name {{ font-size: 24px; font-weight: 800; color: #047857; letter-spacing: -1px; }}
+            /* HEADER MEJORADO */
+            .header-container {{ display: flex; flex-direction: column; gap: 15px; margin-bottom: 10px; position: relative; }}
+            
+            /* BRANDING PLATICA - MAS GRANDE Y DOMINANTE */
+            .platica-branding {{ display: flex; align-items: center; gap: 20px; position: absolute; top: 0; right: 0; margin-top: -15px; }}
+            .platica-logo-img {{ height: 100px; width: auto; }} /* Logo aún más grande */
+            .platica-name {{ font-size: 48px; font-weight: 900; color: #047857; letter-spacing: -3px; line-height: 1; }} /* Tipografía original, ultra-negrita y mas grande */
 
-            .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
-            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1100px; border-left: 5px solid #047857; padding-left: 20px; }}
+            .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; max-width: 800px; }}
+            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1000px; border-left: 5px solid #047857; padding-left: 20px; }}
             
             /* CONTENT */
             .main-content {{ display: flex; gap: 40px; }}
@@ -151,7 +152,7 @@ def generar_imagen(datos: ChatData, request: Request):
             .feat-content h4 {{ color: #047857; font-size: 16px; margin-bottom: 5px; }}
             .feat-content p {{ color: #475569; font-size: 13px; line-height: 1.4; }}
             
-            /* FOOTER (EVIDENCIA) */
+            /* FOOTER */
             .bottom-banner {{ background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 35px; text-align: center; display: flex; align-items: center; justify-content: center; }}
             .evidencia-texto {{ font-size: 26px; color: #1e293b; line-height: 1.4; max-width: 1400px; }}
             .evidencia-texto strong {{ color: #047857; font-weight: 700; }}
@@ -162,14 +163,12 @@ def generar_imagen(datos: ChatData, request: Request):
         <div id="capture-area">
             
             <div class="header-container">
-                <div class="header-left">
-                    <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
-                    <div class="promise-text">{datos.promesa_texto}</div>
-                </div>
+                <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
+                <div class="promise-text">{datos.promesa_texto}</div>
+                
                 <div class="platica-branding">
                     <img src="{platica_logo_url}" class="platica-logo-img">
-                    <span class="platica-name">PLATICA</span>
-                </div>
+                    <span class="platica-name">platica</span> </div>
             </div>
             
             <div class="main-content">
