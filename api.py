@@ -1,6 +1,6 @@
 import os
 import uuid
-from urllib.parse import urlparse  # <-- NUEVO: Para limpiar la URL
+from urllib.parse import urlparse
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,13 +11,12 @@ import uvicorn
 
 os.makedirs("imagenes", exist_ok=True)
 
-# --- MODELO ACTUALIZADO ---
 class Mensaje(BaseModel):
     tipo: str        # "cliente" o "agente"
     subtipo: str     # "texto", "imagen" o "archivo"
     texto: str       # El mensaje, la URL de la imagen o el nombre del PDF
     hora: str
-    metadata: Optional[str] = None # Para el tamaño del archivo (ej: "2.4 MB")
+    metadata: Optional[str] = None 
 
 class Conversacion(BaseModel):
     titulo: str
@@ -25,8 +24,12 @@ class Conversacion(BaseModel):
 
 class ChatData(BaseModel):
     empresa: str
-    pagina_web: str  # <-- NUEVO: Reemplaza al 'logo'
+    pagina_web: str
     conversaciones: List[Conversacion]
+    # Valores por defecto para rellenar la plantilla comercial
+    caso_uso: str = "Automatización y atención al cliente por WhatsApp"
+    promesa_titulo: str = "Promesa clara"
+    promesa_texto: str = "Un agente de IA puede reducir 30%-50% el tiempo operativo invertido en atención, validación y seguimiento, mejorando radicalmente la experiencia del usuario."
 
 app = FastAPI()
 app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
@@ -34,42 +37,38 @@ app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
 @app.post("/generar-imagen")
 def generar_imagen(datos: ChatData, request: Request):
     
-    # --- LÓGICA PARA OBTENER EL FAVICON ---
-    # 1. Limpiamos la URL para sacar solo el dominio (ej. xbox.com)
+    # 1. Limpiar URL para el Favicon
     url_limpia = datos.pagina_web if datos.pagina_web.startswith("http") else f"http://{datos.pagina_web}"
     dominio = urlparse(url_limpia).netloc.replace("www.", "")
-    
-    # 2. Usamos el servicio de Google para traer el icono a 128px
     logo_url = f"https://www.google.com/s2/favicons?domain={dominio}&sz=128"
-    
-    # 3. Lo metemos en nuestra etiqueta HTML
     logo_html = f'<img src="{logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
 
+    # 2. Construir los teléfonos
     telefonos_html = ""
-    for conv in datos.conversaciones:
+    iconos_titulos = ["🔍", "🛡️", "✅"] # Iconos para los pasos de arriba
+
+    for i, conv in enumerate(datos.conversaciones):
         mensajes_html = ""
+        icono_paso = iconos_titulos[i] if i < len(iconos_titulos) else "💬"
+
         for msg in conv.mensajes:
             clase_tipo = "sent" if msg.tipo == "cliente" else "received"
             
-            # --- LÓGICA DE RENDERIZADO POR SUBTIPO ---
             if msg.subtipo == "imagen":
-                # Burbuja de Imagen
                 contenido = f'<img src="{msg.texto}" style="width:100%; border-radius:5px; display:block; margin-bottom:5px;">'
             elif msg.subtipo == "archivo":
-                # Burbuja de PDF/Archivo
                 peso = msg.metadata if msg.metadata else "PDF"
                 contenido = f"""
                 <div style="display:flex; align-items:center; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px; margin-bottom:5px;">
                     <span style="font-size:24px; margin-right:10px;">📄</span>
                     <div style="overflow:hidden;">
-                        <div style="font-size:13px; font-weight:500; white-space:nowrap; text-overflow:ellipsis;">{msg.texto}</div>
+                        <div style="font-size:13px; font-weight:500; white-space:nowrap; text-overflow:ellipsis; color:#111;">{msg.texto}</div>
                         <div style="font-size:11px; color:#666;">{peso}</div>
                     </div>
                 </div>
                 """
             else:
-                # Texto normal
-                contenido = f'<div>{msg.texto}</div>'
+                contenido = f'<div style="color:#111;">{msg.texto}</div>'
 
             mensajes_html += f"""
             <div class="message {clase_tipo}">
@@ -80,53 +79,189 @@ def generar_imagen(datos: ChatData, request: Request):
         
         telefonos_html += f"""
         <div class="phone-column">
-            <div class="phone-title">{conv.titulo}</div>
+            <div class="phone-title">{icono_paso} {conv.titulo}</div>
             <div class="phone-container">
                 <div class="chat-header">
                     <div class="back-btn">←</div>
                     <div class="profile-pic">{logo_html}</div>
                     <div class="contact-info">
                         <div class="contact-name">{datos.empresa}</div>
-                        <div class="contact-status">Negocio - En línea</div>
+                        <div class="contact-status">Cuenta de empresa oficial</div>
                     </div>
                 </div>
                 <div class="chat-body">{mensajes_html}</div>
-                <div class="chat-footer"><div class="input-bar"><span>Escribe un mensaje...</span></div></div>
+                <div class="chat-footer"><div class="input-bar"><span>Escribe un mensaje</span><span style="float:right;">📸 🎤</span></div></div>
             </div>
         </div>
         """
 
+    # 3. Ensamblar la plantilla comercial completa
     html_completo = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <style>
-            * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }}
-            #capture-area {{ display: flex; gap: 40px; justify-content: center; padding: 50px; background-color: #d1d1d1; }}
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }}
+            
+            #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; }}
+            
+            /* HEADER COMERCIAL */
+            .top-header {{ margin-bottom: 10px; }}
+            .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
+            .promise-row {{ display: flex; align-items: center; gap: 30px; }}
+            .promise-title {{ font-size: 42px; font-weight: 700; color: #0f172a; border-left: 5px solid #047857; padding-left: 20px; min-width: 300px; }}
+            .promise-text {{ font-size: 20px; color: #475569; line-height: 1.5; max-width: 1000px; }}
+            
+            /* CONTENIDO PRINCIPAL */
+            .main-content {{ display: flex; gap: 40px; }}
+            
+            /* SECCIÓN DE TELÉFONOS */
+            .phones-section {{ flex: 1; display: flex; flex-direction: column; }}
+            .visualizacion-header {{ text-align: center; font-size: 18px; font-weight: 600; color: #047857; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }}
+            .visualizacion-header::before, .visualizacion-header::after {{ content: ""; flex: 1; border-bottom: 1px solid #cbd5e1; }}
+            
+            .phones-grid {{ display: flex; gap: 30px; justify-content: center; }}
             .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 15px; }}
-            .phone-title {{ font-size: 20px; font-weight: bold; color: #222; }}
-            .phone-container {{ width: 350px; height: 650px; background-color: #e5ddd5; border: 8px solid #333; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }}
-            .chat-header {{ background-color: #008069; color: white; padding: 10px 15px; display: flex; align-items: center; }}
+            .phone-title {{ font-size: 18px; font-weight: 600; color: #047857; }}
+            
+            .phone-container {{ width: 320px; height: 600px; background-color: #e5ddd5; border: 10px solid #1e293b; border-radius: 35px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 25px rgba(0,0,0,0.15); position: relative; }}
+            /* Muesca del iPhone (Notch) */
+            .phone-container::before {{ content:""; position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:25px; background:#1e293b; border-bottom-left-radius:15px; border-bottom-right-radius:15px; z-index:10; }}
+            
+            .chat-header {{ background-color: #075e54; color: white; padding: 25px 15px 10px; display: flex; align-items: center; }}
             .profile-pic {{ width: 38px; height: 38px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 12px; font-size: 18px; overflow: hidden; }}
+            .contact-name {{ font-weight: 600; font-size: 15px; }}
+            .contact-status {{ font-size: 11px; opacity: 0.8; }}
+            
             .chat-body {{ flex-grow: 1; padding: 15px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; display: flex; flex-direction: column; gap: 8px; }}
-            .message {{ max-width: 85%; padding: 6px 9px; border-radius: 7px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }}
-            .message.sent {{ background-color: #dcf8c6; align-self: flex-end; }}
-            .message.received {{ background-color: #ffffff; align-self: flex-start; }}
-            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; }}
+            .message {{ max-width: 85%; padding: 8px 10px; border-radius: 8px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.4; }}
+            .message.sent {{ background-color: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }}
+            .message.received {{ background-color: #ffffff; align-self: flex-start; border-top-left-radius: 0; }}
+            .time {{ font-size: 10px; color: #888; float: right; margin-top: 4px; margin-left: 8px; clear: both; }}
+            
             .chat-footer {{ background-color: #f0f0f0; padding: 10px; }}
-            .input-bar {{ background-color: #fff; padding: 8px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
+            .input-bar {{ background-color: #fff; padding: 10px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
+            
+            .phones-caption {{ text-align: center; color: #475569; font-size: 15px; margin-top: 20px; }}
+            
+            /* PANEL DERECHO (CARACTERÍSTICAS) */
+            .features-panel {{ width: 380px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }}
+            .features-title {{ font-size: 20px; font-weight: 700; color: #0f172a; text-align: center; margin-bottom: 10px; }}
+            .feature-item {{ display: flex; gap: 15px; align-items: flex-start; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; }}
+            .feature-item:last-child {{ border-bottom: none; }}
+            .feat-icon {{ font-size: 28px; background: #ecfdf5; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid #a7f3d0; }}
+            .feat-content h4 {{ color: #047857; font-size: 16px; margin-bottom: 5px; }}
+            .feat-content p {{ color: #475569; font-size: 13px; line-height: 1.4; }}
+            
+            /* FOOTER / BOTTOM BANNER */
+            .bottom-banner {{ display: flex; background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 30px; justify-content: space-between; align-items: center; }}
+            .banner-left {{ display: flex; gap: 20px; align-items: center; max-width: 60%; border-right: 1px solid #a7f3d0; padding-right: 30px; }}
+            .banner-left h4 {{ color: #047857; font-size: 20px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }}
+            .banner-left p {{ color: #334155; font-size: 15px; line-height: 1.4; }}
+            
+            .banner-right {{ display: flex; gap: 20px; align-items: center; flex: 1; padding-left: 30px; justify-content: space-between; }}
+            .banner-right h4 {{ color: #0f172a; font-size: 18px; margin-bottom: 5px; }}
+            .banner-right p {{ color: #475569; font-size: 14px; line-height: 1.4; }}
+            .cta-btn {{ background-color: #047857; color: white; padding: 15px 25px; border-radius: 8px; font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(4,120,87,0.3); }}
+            
         </style>
     </head>
     <body>
-        <div id="capture-area">{telefonos_html}</div>
+        <div id="capture-area">
+            
+            <div class="top-header">
+                <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
+                <div class="promise-row">
+                    <div class="promise-title">{datos.promesa_titulo}</div>
+                    <div class="promise-text">{datos.promesa_texto}</div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                
+                <div class="phones-section">
+                    <div class="visualizacion-header">Visualización</div>
+                    <div class="phones-grid">
+                        {telefonos_html}
+                    </div>
+                    <div class="phones-caption">
+                        🤖 El agente resuelve lo repetitivo y escala excepciones al equipo humano.
+                    </div>
+                </div>
+                
+                <div class="features-panel">
+                    <div class="features-title">Qué incluye nuestra solución</div>
+                    
+                    <div class="feature-item">
+                        <div class="feat-icon">🤖</div>
+                        <div class="feat-content">
+                            <h4>Agente con IA</h4>
+                            <p>Entiende, valida y da seguimiento a consultas por WhatsApp 24/7.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feat-icon">📋</div>
+                        <div class="feat-content">
+                            <h4>Validación inteligente</h4>
+                            <p>Verifica intenciones, extrae datos clave y captura evidencia en formatos múltiples.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feat-icon">🔄</div>
+                        <div class="feat-content">
+                            <h4>Gestión automatizada</h4>
+                            <p>Crea el caso, gestiona respuestas y notifica al usuario final en tiempo real.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feat-icon">👤</div>
+                        <div class="feat-content">
+                            <h4>Escalamiento humano</h4>
+                            <p>El agente transfiere excepciones a los asesores de ventas con contexto completo.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feat-icon">📊</div>
+                        <div class="feat-content">
+                            <h4>Trazabilidad y reportes</h4>
+                            <p>Monitorea casos, tiempos de respuesta y resultados desde el panel de control.</p>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <div class="bottom-banner">
+                <div class="banner-left">
+                    <div>
+                        <h4><span style="font-size:24px;">🛡️</span> Evidencia</h4>
+                        <p>Platica ya opera conversaciones con lógica de negocio a escala.<br>
+                        Nuestras campañas correctivas y preventivas alcanzan altas tasas de resolución automatizada.</p>
+                    </div>
+                </div>
+                
+                <div class="banner-right">
+                    <div>
+                        <h4>Siguiente paso</h4>
+                        <p>Agenda una demo y te mostramos este flujo aplicado a tu operación.</p>
+                    </div>
+                    <div class="cta-btn">
+                        📅 Agenda una demo
+                    </div>
+                </div>
+            </div>
+            
+        </div>
     </body>
     </html>
     """
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-        page = browser.new_page(viewport={"width": 1400, "height": 1000})
+        # Aumentamos el Viewport para que quepa el diseño panorámico
+        page = browser.new_page(viewport={"width": 1650, "height": 1100})
         page.set_content(html_completo)
         page.wait_for_load_state("networkidle")
         img = page.locator("#capture-area").screenshot(type="jpeg", quality=90)
