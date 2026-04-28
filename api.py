@@ -96,28 +96,35 @@ def generar_imagen(datos: ChatData, request: Request):
         </div>
         """
 
-    # 4. Plantilla Final
+    # 4. Plantilla Final con Branding Optimizado
     html_completo = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
             * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }}
             
             #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; }}
             
-            /* HEADER MEJORADO */
+            /* HEADER */
             .header-container {{ display: flex; flex-direction: column; gap: 15px; margin-bottom: 10px; position: relative; }}
             
-            /* BRANDING PLATICA - MAS GRANDE Y DOMINANTE */
-            .platica-branding {{ display: flex; align-items: center; gap: 20px; position: absolute; top: 0; right: 0; margin-top: -15px; }}
-            .platica-logo-img {{ height: 100px; width: auto; }} /* Logo aún más grande */
-            .platica-name {{ font-size: 48px; font-weight: 900; color: #047857; letter-spacing: -3px; line-height: 1; }} /* Tipografía original, ultra-negrita y mas grande */
+            /* BRANDING PLATICA - ESTILO WEB OFICIAL */
+            .platica-branding {{ display: flex; align-items: center; gap: 10px; position: absolute; top: 0; right: 0; margin-top: -20px; }}
+            .platica-logo-img {{ height: 105px; width: auto; }} 
+            .platica-name {{ 
+                font-size: 95px; 
+                font-weight: 500; 
+                color: #047857; 
+                letter-spacing: -4px; 
+                line-height: 1;
+                text-transform: lowercase;
+            }} 
 
             .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; max-width: 800px; }}
-            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1000px; border-left: 5px solid #047857; padding-left: 20px; }}
+            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 950px; border-left: 5px solid #047857; padding-left: 20px; }}
             
             /* CONTENT */
             .main-content {{ display: flex; gap: 40px; }}
@@ -168,7 +175,8 @@ def generar_imagen(datos: ChatData, request: Request):
                 
                 <div class="platica-branding">
                     <img src="{platica_logo_url}" class="platica-logo-img">
-                    <span class="platica-name">platica</span> </div>
+                    <span class="platica-name">platica</span>
+                </div>
             </div>
             
             <div class="main-content">
