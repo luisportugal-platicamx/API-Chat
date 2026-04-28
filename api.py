@@ -26,9 +26,8 @@ class ChatData(BaseModel):
     empresa: str
     pagina_web: str
     conversaciones: List[Conversacion]
-    # Valores por defecto para rellenar la plantilla comercial
+    # Se eliminó promesa_titulo
     caso_uso: str = "Automatización y atención al cliente por WhatsApp"
-    promesa_titulo: str = "Promesa clara"
     promesa_texto: str = "Un agente de IA puede reducir 30%-50% el tiempo operativo invertido en atención, validación y seguimiento, mejorando radicalmente la experiencia del usuario."
 
 app = FastAPI()
@@ -45,7 +44,7 @@ def generar_imagen(datos: ChatData, request: Request):
 
     # 2. Construir los teléfonos
     telefonos_html = ""
-    iconos_titulos = ["🔍", "🛡️", "✅"] # Iconos para los pasos de arriba
+    iconos_titulos = ["🔍", "🛡️", "✅"] 
 
     for i, conv in enumerate(datos.conversaciones):
         mensajes_html = ""
@@ -111,8 +110,8 @@ def generar_imagen(datos: ChatData, request: Request):
             .top-header {{ margin-bottom: 10px; }}
             .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
             .promise-row {{ display: flex; align-items: center; gap: 30px; }}
-            .promise-title {{ font-size: 42px; font-weight: 700; color: #0f172a; border-left: 5px solid #047857; padding-left: 20px; min-width: 300px; }}
-            .promise-text {{ font-size: 20px; color: #475569; line-height: 1.5; max-width: 1000px; }}
+            /* Ahora el texto de la promesa hereda la línea verde y es más vistoso */
+            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 1200px; border-left: 5px solid #047857; padding-left: 20px; }}
             
             /* CONTENIDO PRINCIPAL */
             .main-content {{ display: flex; gap: 40px; }}
@@ -127,7 +126,6 @@ def generar_imagen(datos: ChatData, request: Request):
             .phone-title {{ font-size: 18px; font-weight: 600; color: #047857; }}
             
             .phone-container {{ width: 320px; height: 600px; background-color: #e5ddd5; border: 10px solid #1e293b; border-radius: 35px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 25px rgba(0,0,0,0.15); position: relative; }}
-            /* Muesca del iPhone (Notch) */
             .phone-container::before {{ content:""; position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:25px; background:#1e293b; border-bottom-left-radius:15px; border-bottom-right-radius:15px; z-index:10; }}
             
             .chat-header {{ background-color: #075e54; color: white; padding: 25px 15px 10px; display: flex; align-items: center; }}
@@ -174,13 +172,11 @@ def generar_imagen(datos: ChatData, request: Request):
             <div class="top-header">
                 <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
                 <div class="promise-row">
-                    <div class="promise-title">{datos.promesa_titulo}</div>
                     <div class="promise-text">{datos.promesa_texto}</div>
                 </div>
             </div>
             
             <div class="main-content">
-                
                 <div class="phones-section">
                     <div class="visualizacion-header">Visualización</div>
                     <div class="phones-grid">
@@ -193,7 +189,6 @@ def generar_imagen(datos: ChatData, request: Request):
                 
                 <div class="features-panel">
                     <div class="features-title">Qué incluye nuestra solución</div>
-                    
                     <div class="feature-item">
                         <div class="feat-icon">🤖</div>
                         <div class="feat-content">
@@ -230,7 +225,6 @@ def generar_imagen(datos: ChatData, request: Request):
                         </div>
                     </div>
                 </div>
-                
             </div>
             
             <div class="bottom-banner">
@@ -241,7 +235,6 @@ def generar_imagen(datos: ChatData, request: Request):
                         Nuestras campañas correctivas y preventivas alcanzan altas tasas de resolución automatizada.</p>
                     </div>
                 </div>
-                
                 <div class="banner-right">
                     <div>
                         <h4>Siguiente paso</h4>
@@ -260,7 +253,6 @@ def generar_imagen(datos: ChatData, request: Request):
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-        # Aumentamos el Viewport para que quepa el diseño panorámico
         page = browser.new_page(viewport={"width": 1650, "height": 1100})
         page.set_content(html_completo)
         page.wait_for_load_state("networkidle")
