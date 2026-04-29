@@ -22,12 +22,20 @@ class Conversacion(BaseModel):
     titulo: str
     mensajes: List[Mensaje]
 
+# NUEVO MODELO: Para las características de la solución
+class Feature(BaseModel):
+    icono: str
+    titulo: str
+    descripcion: str
+
 class ChatData(BaseModel):
     empresa: str
     pagina_web: str
+    caso_uso: str         # Ya no hay texto por defecto
+    promesa_texto: str    # Ya no hay texto por defecto
     conversaciones: List[Conversacion]
-    caso_uso: str = "Automatización y atención al cliente por WhatsApp"
-    promesa_texto: str = "Un agente de IA puede reducir 30%-50% el tiempo operativo invertido en atención, validación y seguimiento, mejorando radicalmente la experiencia del usuario."
+    features: List[Feature] # Nueva lista dinámica de características
+    evidencia_texto: str  # Nuevo texto dinámico para el footer
 
 app = FastAPI()
 app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
@@ -96,7 +104,20 @@ def generar_imagen(datos: ChatData, request: Request):
         </div>
         """
 
-    # 4. Plantilla Final con Branding Optimizado
+    # 4. Construir las características (features) dinámicamente
+    features_html = ""
+    for feat in datos.features:
+        features_html += f"""
+        <div class="feature-item">
+            <div class="feat-icon">{feat.icono}</div>
+            <div class="feat-content">
+                <h4>{feat.titulo}</h4>
+                <p>{feat.descripcion}</p>
+            </div>
+        </div>
+        """
+
+    # 5. Plantilla Final con Todo Dinámico
     html_completo = f"""
     <!DOCTYPE html>
     <html>
@@ -111,17 +132,9 @@ def generar_imagen(datos: ChatData, request: Request):
             /* HEADER */
             .header-container {{ display: flex; flex-direction: column; gap: 15px; margin-bottom: 10px; position: relative; }}
             
-            /* BRANDING PLATICA - ESTILO WEB OFICIAL */
             .platica-branding {{ display: flex; align-items: center; gap: 10px; position: absolute; top: 0; right: 0; margin-top: -20px; }}
             .platica-logo-img {{ height: 105px; width: auto; }} 
-            .platica-name {{ 
-                font-size: 95px; 
-                font-weight: 500; 
-                color: #047857; 
-                letter-spacing: -4px; 
-                line-height: 1;
-                text-transform: lowercase;
-            }} 
+            .platica-name {{ font-size: 95px; font-weight: 500; color: #047857; letter-spacing: -4px; line-height: 1; text-transform: lowercase; }} 
 
             .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; max-width: 800px; }}
             .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 950px; border-left: 5px solid #047857; padding-left: 20px; }}
@@ -171,7 +184,7 @@ def generar_imagen(datos: ChatData, request: Request):
             
             <div class="header-container">
                 <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
-                <div class="promise-text">{datos.promesa_texto}</div>
+                <div class="promesa-text">{datos.promesa_texto}</div>
                 
                 <div class="platica-branding">
                     <img src="{platica_logo_url}" class="platica-logo-img">
@@ -187,47 +200,13 @@ def generar_imagen(datos: ChatData, request: Request):
                 
                 <div class="features-panel">
                     <div class="features-title">Qué incluye nuestra solución</div>
-                    <div class="feature-item">
-                        <div class="feat-icon">🤖</div>
-                        <div class="feat-content">
-                            <h4>Agente con IA</h4>
-                            <p>Entiende, valida y da seguimiento a consultas por WhatsApp 24/7.</p>
-                        </div>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feat-icon">📋</div>
-                        <div class="feat-content">
-                            <h4>Validación inteligente</h4>
-                            <p>Verifica intenciones y extrae datos clave en formatos múltiples.</p>
-                        </div>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feat-icon">🔄</div>
-                        <div class="feat-content">
-                            <h4>Gestión automatizada</h4>
-                            <p>Crea el caso y notifica al usuario final en tiempo real.</p>
-                        </div>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feat-icon">👤</div>
-                        <div class="feat-content">
-                            <h4>Escalamiento humano</h4>
-                            <p>El agente transfiere excepciones con contexto completo.</p>
-                        </div>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feat-icon">📊</div>
-                        <div class="feat-content">
-                            <h4>Trazabilidad</h4>
-                            <p>Monitorea casos y tiempos desde el panel de control.</p>
-                        </div>
-                    </div>
+                    {features_html}
                 </div>
             </div>
             
             <div class="bottom-banner">
                 <div class="evidencia-texto">
-                    Platica ya opera conversaciones con lógica de negocio a escala. En <strong>Vianney</strong>, las campañas correctivas alcanzan <strong>~24,000 mensajes/mes</strong> y las preventivas <strong>~16,000 mensajes/mes.</strong>
+                    {datos.evidencia_texto}
                 </div>
             </div>
             
