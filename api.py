@@ -22,7 +22,6 @@ class Conversacion(BaseModel):
     titulo: str
     mensajes: List[Mensaje]
 
-# NUEVO MODELO: Para las características de la solución
 class Feature(BaseModel):
     icono: str
     titulo: str
@@ -31,11 +30,11 @@ class Feature(BaseModel):
 class ChatData(BaseModel):
     empresa: str
     pagina_web: str
-    caso_uso: str         # Ya no hay texto por defecto
-    promesa_texto: str    # Ya no hay texto por defecto
+    caso_uso: str         
+    promesa_texto: str    
     conversaciones: List[Conversacion]
-    features: List[Feature] # Nueva lista dinámica de características
-    evidencia_texto: str  # Nuevo texto dinámico para el footer
+    features: List[Feature] 
+    evidencia_texto: str  
 
 app = FastAPI()
 app.mount("/imagenes", StaticFiles(directory="imagenes"), name="imagenes")
@@ -58,7 +57,9 @@ def generar_imagen(datos: ChatData, request: Request):
 
     for i, conv in enumerate(datos.conversaciones):
         mensajes_html = ""
+        # Si el agente ya mandó un emoji en el título, evitamos duplicarlo, de lo contrario usamos el default
         icono_paso = iconos_titulos[i] if i < len(iconos_titulos) else "💬"
+        titulo_mostrar = f"{icono_paso} {conv.titulo}" if not any(char in conv.titulo for char in iconos_titulos) else conv.titulo
 
         for msg in conv.mensajes:
             clase_tipo = "sent" if msg.tipo == "cliente" else "received"
@@ -88,7 +89,7 @@ def generar_imagen(datos: ChatData, request: Request):
         
         telefonos_html += f"""
         <div class="phone-column">
-            <div class="phone-title">{icono_paso} {conv.titulo}</div>
+            <div class="phone-title">{titulo_mostrar}</div>
             <div class="phone-container">
                 <div class="chat-header">
                     <div class="back-btn">←</div>
@@ -117,7 +118,7 @@ def generar_imagen(datos: ChatData, request: Request):
         </div>
         """
 
-    # 5. Plantilla Final con Todo Dinámico
+    # 5. Plantilla Final con CSS a prueba de desbordes
     html_completo = f"""
     <!DOCTYPE html>
     <html>
@@ -127,34 +128,51 @@ def generar_imagen(datos: ChatData, request: Request):
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
             * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }}
             
-            #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; }}
+            #capture-area {{ width: 1600px; padding: 50px 60px; background-color: #ffffff; color: #1e293b; display: flex; flex-direction: column; gap: 30px; overflow: hidden; }}
             
-            /* HEADER */
-            .header-container {{ display: flex; flex-direction: column; gap: 15px; margin-bottom: 10px; position: relative; }}
+            /* HEADER BLINDADO */
+            .header-container {{ display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-bottom: 10px; gap: 40px; }}
+            .header-left {{ display: flex; flex-direction: column; gap: 15px; width: 65%; }}
             
-            .platica-branding {{ display: flex; align-items: center; gap: 10px; position: absolute; top: 0; right: 0; margin-top: -20px; }}
-            .platica-logo-img {{ height: 105px; width: auto; }} 
-            .platica-name {{ font-size: 95px; font-weight: 500; color: #047857; letter-spacing: -4px; line-height: 1; text-transform: lowercase; }} 
+            .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; }}
+            
+            /* PROMESA MÁS GRANDE Y EN NEGRITAS */
+            .promesa-text {{ font-size: 26px; font-weight: 600; color: #0f172a; line-height: 1.4; border-left: 5px solid #047857; padding-left: 20px; text-wrap: pretty; }}
+            
+            /* BRANDING PLATICA */
+            .platica-branding {{ display: flex; align-items: center; justify-content: flex-end; gap: 15px; width: 35%; padding-top: 10px; }}
+            .platica-logo-img {{ height: 90px; width: auto; flex-shrink: 0; }} 
+            .platica-name {{ font-size: 85px; font-weight: 600; color: #047857; letter-spacing: -4px; line-height: 1; text-transform: lowercase; }} 
 
-            .use-case {{ color: #047857; font-weight: 600; font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; max-width: 800px; }}
-            .promise-text {{ font-size: 24px; font-weight: 500; color: #0f172a; line-height: 1.5; max-width: 950px; border-left: 5px solid #047857; padding-left: 20px; }}
-            
             /* CONTENT */
-            .main-content {{ display: flex; gap: 40px; }}
-            .phones-section {{ flex: 1; display: flex; flex-direction: column; }}
-            .visualizacion-header {{ text-align: center; font-size: 18px; font-weight: 600; color: #047857; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }}
+            .main-content {{ display: flex; gap: 40px; width: 100%; }}
+            .phones-section {{ flex: 1; display: flex; flex-direction: column; min-width: 0; }}
+            .visualizacion-header {{ text-align: center; font-size: 18px; font-weight: 600; color: #047857; margin-bottom: 25px; display: flex; align-items: center; gap: 15px; }}
             .visualizacion-header::before, .visualizacion-header::after {{ content: ""; flex: 1; border-bottom: 1px solid #cbd5e1; }}
             
-            .phones-grid {{ display: flex; gap: 30px; justify-content: center; }}
-            .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 15px; }}
-            .phone-title {{ font-size: 18px; font-weight: 600; color: #047857; }}
+            .phones-grid {{ display: flex; gap: 30px; justify-content: center; width: 100%; }}
+            .phone-column {{ display: flex; flex-direction: column; align-items: center; gap: 15px; width: 320px; }}
             
-            .phone-container {{ width: 320px; height: 600px; background-color: #e5ddd5; border: 10px solid #1e293b; border-radius: 35px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 25px rgba(0,0,0,0.15); position: relative; }}
+            /* TÍTULOS DE TELÉFONO ARREGLADOS */
+            .phone-title {{ 
+                font-size: 18px; 
+                font-weight: 600; 
+                color: #047857; 
+                text-align: center; 
+                width: 100%; 
+                min-height: 46px; /* Deja espacio por si se hace de dos renglones */
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                line-height: 1.2;
+            }}
+            
+            .phone-container {{ width: 100%; height: 600px; background-color: #e5ddd5; border: 10px solid #1e293b; border-radius: 35px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 25px rgba(0,0,0,0.15); position: relative; flex-shrink: 0; }}
             .phone-container::before {{ content:""; position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:25px; background:#1e293b; border-bottom-left-radius:15px; border-bottom-right-radius:15px; z-index:10; }}
             
             .chat-header {{ background-color: #075e54; color: white; padding: 25px 15px 10px; display: flex; align-items: center; }}
-            .profile-pic {{ width: 38px; height: 38px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 12px; font-size: 18px; overflow: hidden; }}
-            .chat-body {{ flex-grow: 1; padding: 15px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; display: flex; flex-direction: column; gap: 8px; }}
+            .profile-pic {{ width: 38px; height: 38px; background-color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 12px; font-size: 18px; overflow: hidden; flex-shrink: 0; }}
+            .chat-body {{ flex-grow: 1; padding: 15px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }}
             .message {{ max-width: 85%; padding: 8px 10px; border-radius: 8px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.4; }}
             .message.sent {{ background-color: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }}
             .message.received {{ background-color: #ffffff; align-self: flex-start; border-top-left-radius: 0; }}
@@ -164,16 +182,16 @@ def generar_imagen(datos: ChatData, request: Request):
             .input-bar {{ background-color: #fff; padding: 10px 15px; border-radius: 20px; color: #999; font-size: 13px; }}
             
             /* PANEL DERECHO */
-            .features-panel {{ width: 380px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 20px; }}
-            .features-title {{ font-size: 20px; font-weight: 700; color: #0f172a; text-align: center; margin-bottom: 10px; }}
+            .features-panel {{ width: 380px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; }}
+            .features-title {{ font-size: 20px; font-weight: 700; color: #0f172a; text-align: center; margin-bottom: 5px; }}
             .feature-item {{ display: flex; gap: 15px; align-items: flex-start; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; }}
-            .feature-item:last-child {{ border-bottom: none; }}
-            .feat-icon {{ font-size: 28px; background: #ecfdf5; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid #a7f3d0; }}
-            .feat-content h4 {{ color: #047857; font-size: 16px; margin-bottom: 5px; }}
+            .feature-item:last-child {{ border-bottom: none; padding-bottom: 0; }}
+            .feat-icon {{ font-size: 28px; background: #ecfdf5; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid #a7f3d0; flex-shrink: 0; }}
+            .feat-content h4 {{ color: #047857; font-size: 16px; margin-bottom: 4px; }}
             .feat-content p {{ color: #475569; font-size: 13px; line-height: 1.4; }}
             
             /* FOOTER */
-            .bottom-banner {{ background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 35px; text-align: center; display: flex; align-items: center; justify-content: center; }}
+            .bottom-banner {{ background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 15px; padding: 30px; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; }}
             .evidencia-texto {{ font-size: 26px; color: #1e293b; line-height: 1.4; max-width: 1400px; }}
             .evidencia-texto strong {{ color: #047857; font-weight: 700; }}
             
@@ -183,8 +201,10 @@ def generar_imagen(datos: ChatData, request: Request):
         <div id="capture-area">
             
             <div class="header-container">
-                <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
-                <div class="promesa-text">{datos.promesa_texto}</div>
+                <div class="header-left">
+                    <div class="use-case"><span>🌿</span> Caso de uso: {datos.caso_uso}</div>
+                    <div class="promesa-text">{datos.promesa_texto}</div>
+                </div>
                 
                 <div class="platica-branding">
                     <img src="{platica_logo_url}" class="platica-logo-img">
